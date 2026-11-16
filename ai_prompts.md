@@ -223,3 +223,6 @@ i started 8:40 and finished 11
 
 ### 64 (11:01)
 done
+
+> Prompts 1–64 cover the development of the repository. Later prompts in the same
+> conversation were about a final fresh-clone check and preparing the presentation slides.
