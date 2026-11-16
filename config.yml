@@ -1,0 +1,16 @@
+# Switch experimental condition by editing `participants`:
+#   [human, human, human]  -> 3 humans
+#   [human, human, ai]     -> 2 humans + 1 AI agent
+#   [human, ai, ai]        -> 1 human + 2 AI agents
+# Order does not matter: Player A/B/C labels are shuffled per session.
+participants: [human, human, ai]
+
+rounds: 2
+discussion_seconds: 60
+voting_seconds: 20
+feedback_seconds: 8   # how long the round-1 tally is shown
+
+ai:
+  mode: scripted      # scripted | llm (llm falls back to scripted without an API key)
+  min_typing_delay_seconds: 3
+  max_typing_delay_seconds: 9
