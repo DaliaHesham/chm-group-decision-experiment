@@ -11,6 +11,6 @@ voting_seconds: 20
 feedback_seconds: 8   # how long the round-1 tally is shown
 
 ai:
-  mode: scripted      # scripted | llm (llm falls back to scripted without an API key)
+  mode: scripted      # rule-based agent (see backend/app/ai_agent.py)
   min_typing_delay_seconds: 3
   max_typing_delay_seconds: 9

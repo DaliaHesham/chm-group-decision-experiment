@@ -7,7 +7,7 @@ from collections import Counter
 
 from fastapi import WebSocket
 
-from . import ai_agent
+from .ai_agent import ScriptedAgent
 from .config import ExperimentConfig
 from .db import EventLog
 
@@ -30,9 +30,15 @@ class Session:
         kinds = list(config.participants)
         random.shuffle(kinds)  # blinding: the AI is not always the same label
         self.participants = {label: Participant(label, kind) for label, kind in zip(LABELS, kinds)}
+        self.agents = {
+            label: ScriptedAgent(label, LABELS, config.ai)
+            for label, p in self.participants.items() if p.kind == "ai"
+        }
         self.phase = "waiting"
         self.round = 0
         self.votes: dict[int, dict[str, str]] = {}
+        self.chat: list[tuple[int, str, str]] = []  # (round, sender, text) -- read by AI agents
+        self.used_lines: set[str] = set()
         self.all_voted = asyncio.Event()
 
     async def persist(self):
@@ -78,6 +84,9 @@ class Session:
                 await self.send(p, {"type": "vote_ack", "target": target})
 
     async def post_chat(self, label: str, text: str):
+        if self.phase != "discussion":
+            return
+        self.chat.append((self.round, label, text))
         await self.log.log(self.id, "chat", label, round=self.round, text=text)
         await self.broadcast({"type": "chat", "from": label, "text": text, "ts": time.time()})
 
@@ -88,10 +97,8 @@ class Session:
             self.all_voted.set()  # everyone voted -> end voting early
 
     async def cast_ai_votes(self):
-        previous = self.tally(self.round - 1) if self.round > 1 else None
-        for p in self.participants.values():
-            if p.kind == "ai":
-                await self.record_vote(p.label, ai_agent.choose_vote(p.label, LABELS, previous))
+        for agent in self.agents.values():
+            await self.record_vote(agent.label, agent.favorite)
 
     # ---------- results ----------
     def tally(self, rnd: int) -> dict[str, int]:
@@ -128,8 +135,14 @@ class Session:
             self.round = rnd
             self.votes[rnd] = {}
 
+            if rnd > 1:
+                for agent in self.agents.values():
+                    agent.update_for_round(self.tally(rnd - 1))
             await self.set_phase("discussion", c.discussion_seconds)
+            ai_tasks = [asyncio.create_task(a.discuss(self, rnd, c.discussion_seconds)) for a in self.agents.values()]
             await asyncio.sleep(c.discussion_seconds)
+            for task in ai_tasks:
+                task.cancel()
 
             self.all_voted = asyncio.Event()
             await self.set_phase("voting", c.voting_seconds)

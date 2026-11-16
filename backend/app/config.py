@@ -6,7 +6,7 @@ from pydantic import BaseModel, field_validator
 
 
 class AIConfig(BaseModel):
-    mode: Literal["scripted", "llm"] = "scripted"
+    mode: Literal["scripted"] = "scripted"
     min_typing_delay_seconds: float = 3
     max_typing_delay_seconds: float = 9
 
